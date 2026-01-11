@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 import subprocess
+import time
 from src.config_loader import ConfigLoader
 from src.docker_manager import DockerManager
 from src.failure_analyzer import FailureAnalyzer
@@ -148,7 +149,7 @@ def main():
             # Create feature branch
             base_branch = github_config.get("base_branch", "master")
             branch_prefix = github_config.get("branch_prefix", "fix/self-healing")
-            branch_name = f"{branch_prefix}-{target_failure.test_name.lower().replace('_', '-')}"
+            branch_name = f"{branch_prefix}-{target_failure.test_name.lower().replace('_', '-')}-{int(time.time())}"
             
             if not github_mgr.create_branch(branch_name, base_branch):
                 print("Failed to create branch. Falling back to local fix.")
