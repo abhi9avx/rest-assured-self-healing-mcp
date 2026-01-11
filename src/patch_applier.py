@@ -171,6 +171,37 @@ class PatchApplier:
             if os.path.exists(patch_file):
                 os.remove(patch_file)
 
+    def _lines_match(self, line1, line2):
+        """
+        Fuzzy match two lines, handling:
+        1. Exact match (stripped)
+        2. Whitespace differences
+        3. Numeric format differences (e.g. 01 vs 1 in Java)
+        """
+        # 1. Exact match (stripped)
+        if line1.strip() == line2.strip():
+            return True
+        
+        # 2. Ignore whitespace
+        if "".join(line1.split()) == "".join(line2.split()):
+            return True
+            
+        # 3. Fuzzy number match (handle 01 vs 1, etc)
+        # This is critical for Java 01 vs 1 type mismatches from LLM hallucinations
+        def normalize_nums(s):
+             # Replace 01 -> 1, but keep 0. 
+             # Regex: look for word boundary or non-digit, then 0+, then digit+
+             return re.sub(r'(?<!\d)0+(\d+)', r'\1', s)
+        
+        s1 = normalize_nums(line1.strip())
+        s2 = normalize_nums(line2.strip())
+        
+        # Check again after normalization (and space stripping)
+        if "".join(s1.split()) == "".join(s2.split()):
+            return True
+            
+        return False
+
     def _try_direct_replacement(self, patch_content):
         """
         For simple single-file patches, directly apply the changes.
@@ -200,6 +231,7 @@ class PatchApplier:
                 lines = f.readlines()
             
             # Apply changes
+            changes_made = False
             for change in file_info['changes']:
                 old_line = change['old']
                 new_line = change['new']
@@ -208,17 +240,22 @@ class PatchApplier:
                 # We normalize whitespace for comparison to be more robust
                 replaced = False
                 for i, line in enumerate(lines):
-                    if line.strip() == old_line.strip():
+                    if self._lines_match(line, old_line):
                         # Preserve indentation of the new line if possible on direct replacement
                         # But typically the new line from diff has its own whitespace.
                         # We'll just trust the diff for now.
                         lines[i] = new_line + '\n' if not new_line.endswith('\n') else new_line
                         replaced = True
+                        changes_made = True
                         break
                 
                 if not replaced:
                     print(f"Warning: Could not find line to replace: '{old_line.strip()}'")
             
+            if not changes_made:
+                print("No changes were applied to the file.")
+                return False
+
             # Write back
             with open(file_path, 'w') as f:
                 f.writelines(lines)
