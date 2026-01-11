@@ -6,6 +6,7 @@ from src.docker_manager import DockerManager
 from src.failure_analyzer import FailureAnalyzer
 from src.gemini_client import GeminiClient
 from src.patch_applier import PatchApplier
+from src.github_manager import GitHubManager
 
 def main():
     parser = argparse.ArgumentParser(description="MCP Self-Healing Agent")
@@ -136,12 +137,63 @@ def main():
             
         print(f"Applying fix: {fix.explanation}")
         
-        # 7. Apply Patch
-        success = patch_applier.apply_patch(fix.diff)
-        if not success:
-            print("Patch application failed. Reverting and stopping.")
-            patch_applier.revert_changes()
-            break
+        # 7. GitHub PR Workflow (if enabled)
+        github_config = config.get("github", {})
+        if github_config.get("enabled", False):
+            print("\n--- GitHub PR Workflow Enabled ---")
+            github_mgr = GitHubManager(repo_path)
+            
+            # Create feature branch
+            base_branch = github_config.get("base_branch", "master")
+            branch_prefix = github_config.get("branch_prefix", "fix/self-healing")
+            branch_name = f"{branch_prefix}-{target_failure.test_name.lower().replace('_', '-')}"
+            
+            if not github_mgr.create_branch(branch_name, base_branch):
+                print("Failed to create branch. Falling back to local fix.")
+            else:
+                # Apply patch to the new branch
+                success = patch_applier.apply_patch(fix.diff)
+                if not success:
+                    print("Patch application failed. Reverting and stopping.")
+                    patch_applier.revert_changes()
+                    break
+                
+                # Commit the fix
+                commit_msg = f"🤖 Fix: {target_failure.test_name}\n\n{fix.explanation}"
+                subprocess.run(
+                    ["git", "commit", "-am", commit_msg],
+                    cwd=repo_path,
+                    capture_output=True
+                )
+                
+                # Push to GitHub
+                if not github_mgr.push_branch(branch_name):
+                    print("Failed to push branch. Fix applied locally.")
+                else:
+                    # Create Pull Request
+                    pr_title = f"🤖 Fix: {target_failure.test_name}"
+                    pr_body = github_mgr.generate_pr_body(target_failure, fix)
+                    pr_labels = github_config.get("pr_labels", ["self-healing", "automated-fix"])
+                    
+                    pr_url = github_mgr.create_pull_request(
+                        branch_name=branch_name,
+                        title=pr_title,
+                        body=pr_body,
+                        labels=pr_labels,
+                        base_branch=base_branch
+                    )
+                    
+                    if pr_url:
+                        print(f"\n✅ SUCCESS! Pull Request created: {pr_url}")
+                        print("The fix has been submitted for review.")
+                        break  # Stop after successful PR creation
+        else:
+            # Original workflow: local fix only
+            success = patch_applier.apply_patch(fix.diff)
+            if not success:
+                print("Patch application failed. Reverting and stopping.")
+                patch_applier.revert_changes()
+                break
             
     else:
         print("Max attempts reached.")

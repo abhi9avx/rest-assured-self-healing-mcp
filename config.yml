@@ -3,5 +3,15 @@ good_confidence_threshold: 0.6
 allowed_paths:
   - src/test
 gemini_timeout_seconds: 60
+
+# GitHub PR Settings
+github:
+  enabled: true                           # Enable/disable PR creation
+  base_branch: master                     # Base branch for PRs
+  branch_prefix: "fix/self-healing"       # Branch name prefix
+  auto_merge: false                       # Auto-merge PRs (requires admin)
+  pr_labels: 
+    - "self-healing"
+    - "automated-fix"
 run_full_suite_after_patch: true
 pr_auto_label: mcp-automated-fix
