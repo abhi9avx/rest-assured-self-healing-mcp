@@ -3,6 +3,7 @@ import requests
 import json
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from src.security_utils import SecurityUtils
 
 load_dotenv()
 
@@ -16,11 +17,11 @@ class GeminiClient:
     def __init__(self, api_key=None, model="gemini-2.0-flash-exp"):
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         self.model = model
-        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.api_key}"
+        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
     def get_fix_suggestion(self, failure_context, file_content) -> FixSuggestion:
         if not self.api_key:
-            print("No GEMINI_API_KEY provided. Returning mock response.")
+            SecurityUtils.safe_print("No GEMINI_API_KEY provided. Returning mock response.")
             return self._mock_response()
 
         prompt = self._construct_prompt(failure_context, file_content)
@@ -30,15 +31,16 @@ class GeminiClient:
                 "contents": [{"parts": [{"text": prompt}]}]
             }
             headers = {"Content-Type": "application/json"}
+            params = {"key": self.api_key}
             
-            response = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
+            response = requests.post(self.api_url, headers=headers, params=params, json=payload, timeout=60)
             if response.status_code != 200:
-                print(f"Gemini API Error ({response.status_code}): {response.text}")
+                SecurityUtils.safe_print(f"Gemini API Error ({response.status_code}): {response.text}")
             response.raise_for_status()
             
             return self._parse_response(response.json())
         except Exception as e:
-            print(f"Error calling Gemini: {e}")
+            SecurityUtils.safe_print(f"Error calling Gemini: {e}")
             raise
 
     def _construct_prompt(self, failure, code):
@@ -130,7 +132,7 @@ IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks.
                 confidence=float(data.get("confidence", 0.0))
             )
         except Exception as e:
-            print(f"Failed to parse Gemini response: {e}. Raw text: {text}")
+            SecurityUtils.safe_print(f"Failed to parse Gemini response: {e}. Raw text: {text}")
             return FixSuggestion("Failed to parse", "", 0.0)
 
     def _mock_response(self):

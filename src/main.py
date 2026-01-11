@@ -7,6 +7,7 @@ from src.failure_analyzer import FailureAnalyzer
 from src.gemini_client import GeminiClient
 from src.patch_applier import PatchApplier
 from src.github_manager import GitHubManager
+from src.security_utils import SecurityUtils
 
 def main():
     parser = argparse.ArgumentParser(description="MCP Self-Healing Agent")
@@ -49,7 +50,7 @@ def main():
         
         if run_result["exit_code"] != 0:
             print("Test run failed (Exit Code: {}). Logs:".format(run_result["exit_code"]))
-            print(run_result["logs"][-2000:]) # Print last 2000 chars of logs
+            SecurityUtils.safe_print(run_result["logs"][-2000:]) # Print last 2000 chars of logs
 
         analyzer = FailureAnalyzer(run_result["artifacts_path"])
         failures = analyzer.analyze()

@@ -3,6 +3,7 @@ import re
 import subprocess
 from github import Github, GithubException
 from dotenv import load_dotenv
+from src.security_utils import SecurityUtils
 
 load_dotenv()
 
@@ -26,7 +27,7 @@ class GitHubManager:
             try:
                 self.repo = self.github.get_repo(f"{self.owner}/{self.repo_name}")
             except GithubException as e:
-                print(f"Warning: Could not access GitHub repo: {e}")
+                SecurityUtils.safe_print(f"Warning: Could not access GitHub repo: {e}")
     
     def _extract_repo_info(self):
         """
@@ -55,11 +56,11 @@ class GitHubManager:
             if ssh_match:
                 return ssh_match.group(1), ssh_match.group(2)
             
-            print(f"Could not parse GitHub URL: {remote_url}")
+            SecurityUtils.safe_print(f"Could not parse GitHub URL: {remote_url}")
             return None, None
             
         except subprocess.CalledProcessError:
-            print("Could not get Git remote URL")
+            SecurityUtils.safe_print("Could not get Git remote URL")
             return None, None
     
     def get_current_branch(self):
@@ -112,11 +113,11 @@ class GitHubManager:
                 check=True
             )
             
-            print(f"✓ Created branch: {branch_name}")
+            SecurityUtils.safe_print(f"✓ Created branch: {branch_name}")
             return True
             
         except subprocess.CalledProcessError as e:
-            print(f"✗ Failed to create branch: {e}")
+            SecurityUtils.safe_print(f"✗ Failed to create branch: {e}")
             return False
     
     def push_branch(self, branch_name):
@@ -137,11 +138,11 @@ class GitHubManager:
                 text=True,
                 check=True
             )
-            print(f"✓ Pushed branch to GitHub: {branch_name}")
+            SecurityUtils.safe_print(f"✓ Pushed branch to GitHub: {branch_name}")
             return True
             
         except subprocess.CalledProcessError as e:
-            print(f"✗ Failed to push branch: {e.stderr}")
+            SecurityUtils.safe_print(f"✗ Failed to push branch: {e.stderr}")
             return False
     
     def create_pull_request(self, branch_name, title, body, labels=None, base_branch="master"):
@@ -159,7 +160,7 @@ class GitHubManager:
             str: PR URL if successful, None otherwise
         """
         if not self.repo:
-            print("✗ GitHub repository not accessible. Cannot create PR.")
+            SecurityUtils.safe_print("✗ GitHub repository not accessible. Cannot create PR.")
             return None
         
         try:
@@ -176,13 +177,13 @@ class GitHubManager:
                 try:
                     pr.add_to_labels(*labels)
                 except GithubException as e:
-                    print(f"Warning: Could not add labels: {e}")
+                    SecurityUtils.safe_print(f"Warning: Could not add labels: {e}")
             
-            print(f"✓ Pull Request created: {pr.html_url}")
+            SecurityUtils.safe_print(f"✓ Pull Request created: {pr.html_url}")
             return pr.html_url
             
         except GithubException as e:
-            print(f"✗ Failed to create PR: {e}")
+            SecurityUtils.safe_print(f"✗ Failed to create PR: {e}")
             return None
     
     def generate_pr_body(self, failure_context, fix_suggestion):
