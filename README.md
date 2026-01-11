@@ -40,6 +40,19 @@ The **REST Assured Self-Healing MCP Agent** is an intelligent automation tool th
 - ✅ **Safety First**: Reverts changes if patches fail or cause more issues
 - ✅ **Dual Patch Strategy**: Git apply with direct file replacement fallback
 
+### 🤖 Automated Git Workflow (New!)
+
+**Stop worrying about AI breaking your `master` branch.** 🛡️
+
+The agent acts like a responsible developer on your team. When it finds a fix, it follows a strict enterprise workflow:
+
+1.  **Creates a Feature Branch**: `fix/self-healing-<test-name>-<timestamp>`
+2.  **Applies the Fix**: Safely patches the code in isolation.
+3.  **Verifies the Fix**: Runs the tests again to ensure it works.
+4.  **Pushes & Creates PR**: Automatically opens a clear, descriptive **Pull Request** on GitHub.
+
+**You stay in control.** You review the PR, approve the changes, and merge when ready. 🤝
+
 ### Supported Failure Types
 
 The agent can diagnose and fix:
