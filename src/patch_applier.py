@@ -22,6 +22,9 @@ class PatchApplier:
         
         # Normalize paths: Docker uses /workspace, host uses actual repo path
         patch_content = self._normalize_paths(patch_content)
+
+        # Smart Resolve: Fix incorrect paths from LLM (e.g. missing src/test/java)
+        patch_content = self._smart_resolve_paths(patch_content)
         
         # Create a clean Git snapshot (only source files, not build artifacts)
         self._create_clean_snapshot()
@@ -48,6 +51,57 @@ class PatchApplier:
         # Replace /workspace with empty string (relative paths)
         normalized = patch_content.replace("/workspace/", "")
         return normalized
+
+    def _smart_resolve_paths(self, patch_content):
+        """
+        Scans the patch for file paths. If the path specified doesn't exist,
+        searches the repository for a file with the same name and updates the patch.
+        """
+        lines = patch_content.split('\n')
+        new_lines = []
+        
+        for line in lines:
+            # Handle standard git diff headers
+            if line.startswith('--- a/') or line.startswith('+++ b/'):
+                prefix = line[:6]
+                path = line[6:].strip()
+                
+                # Check if this path exists relative to repo
+                abs_path = os.path.join(self.repo_path, path)
+                if not os.path.exists(abs_path):
+                    # It doesn't exist. Let's find the real file.
+                    filename = os.path.basename(path)
+                    real_path = self._find_file_recursive(filename)
+                    
+                    if real_path:
+                        # Found it! Calculate relative path
+                        rel_path = os.path.relpath(real_path, self.repo_path)
+                        # Update the line with the correct path
+                        new_lines.append(f"{prefix}{rel_path}")
+                        # Only print if we actually changed something meaningful
+                        if path != rel_path:
+                            print(f"Fixed patch path: {path} -> {rel_path}")
+                        continue
+            
+            new_lines.append(line)
+        
+        return '\n'.join(new_lines)
+
+    def _find_file_recursive(self, filename):
+        """
+        Search for a file by name recursively in the repository.
+        Ignores common build/artifact directories.
+        """
+        for root, dirs, files in os.walk(self.repo_path):
+            # optimization: skip .git, build, etc.
+            if '.git' in dirs: dirs.remove('.git')
+            if 'build' in dirs: dirs.remove('build')
+            if '.gradle' in dirs: dirs.remove('.gradle')
+            if 'target' in dirs: dirs.remove('target')
+            
+            if filename in files:
+                return os.path.join(root, filename)
+        return None
 
     def _create_clean_snapshot(self):
         """
@@ -130,11 +184,16 @@ class PatchApplier:
                 print("Could not parse diff for direct replacement")
                 return False
             
+            # Try to resolve path if it doesn't exist (using the smart resolver logic essentially)
             file_path = os.path.join(self.repo_path, file_info['path'])
-            
             if not os.path.exists(file_path):
-                print(f"File not found: {file_path}")
-                return False
+                # Try finding it by name
+                found = self._find_file_recursive(os.path.basename(file_info['path']))
+                if found:
+                    file_path = found
+                else:
+                    print(f"File not found: {file_path}")
+                    return False
             
             # Read current file content
             with open(file_path, 'r') as f:
@@ -146,10 +205,19 @@ class PatchApplier:
                 new_line = change['new']
                 
                 # Find and replace the line
+                # We normalize whitespace for comparison to be more robust
+                replaced = False
                 for i, line in enumerate(lines):
-                    if line.rstrip() == old_line.rstrip():
+                    if line.strip() == old_line.strip():
+                        # Preserve indentation of the new line if possible on direct replacement
+                        # But typically the new line from diff has its own whitespace.
+                        # We'll just trust the diff for now.
                         lines[i] = new_line + '\n' if not new_line.endswith('\n') else new_line
+                        replaced = True
                         break
+                
+                if not replaced:
+                    print(f"Warning: Could not find line to replace: '{old_line.strip()}'")
             
             # Write back
             with open(file_path, 'w') as f:
@@ -179,6 +247,9 @@ class PatchApplier:
                     # Handle cases without b/ prefix
                     file_path = line[4:].strip()
                     break
+                elif line.startswith('--- a/'):
+                     # Fallback to --- if +++ is missing or weird
+                     file_path = line[6:].strip()
             
             if not file_path:
                 return None
