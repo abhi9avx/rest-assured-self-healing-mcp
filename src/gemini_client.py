@@ -19,12 +19,12 @@ class GeminiClient:
         self.model = model
         self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
-    def get_fix_suggestion(self, failure_context, file_content) -> FixSuggestion:
+    def get_fix_suggestion(self, failure_context, file_content, console_logs="") -> FixSuggestion:
         if not self.api_key:
             SecurityUtils.safe_print("No GEMINI_API_KEY provided. Returning mock response.")
             return self._mock_response()
 
-        prompt = self._construct_prompt(failure_context, file_content)
+        prompt = self._construct_prompt(failure_context, file_content, console_logs)
         
         try:
             payload = {
@@ -43,8 +43,8 @@ class GeminiClient:
             SecurityUtils.safe_print(f"Error calling Gemini: {e}")
             raise
 
-    def _construct_prompt(self, failure, code):
-        return f"""
+    def _construct_prompt(self, failure, code, logs=""):
+        prompt = f"""
 You are an expert test automation engineer specializing in Java, RestAssured, and TestNG frameworks.
 Your task is to analyze test failures and propose precise code fixes.
 
@@ -64,6 +64,18 @@ Your task is to analyze test failures and propose precise code fixes.
 ```java
 {code}
 ```
+"""
+        if logs:
+            prompt += f"""
+## Console Logs (Recent Output)
+Use these logs to identify runtime errors, variable values, or system state that isn't in the stack trace.
+```text
+{logs}
+```
+"""
+        
+        prompt += """
+## Common Failure Patterns & Solutions
 
 ## Common Failure Patterns & Solutions
 
