@@ -1,0 +1,7 @@
+max_attempts: 3
+good_confidence_threshold: 0.6
+allowed_paths:
+  - src/test
+gemini_timeout_seconds: 60
+run_full_suite_after_patch: true
+pr_auto_label: mcp-automated-fix
