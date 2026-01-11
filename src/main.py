@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import subprocess
 from src.config_loader import ConfigLoader
 from src.docker_manager import DockerManager
 from src.failure_analyzer import FailureAnalyzer
