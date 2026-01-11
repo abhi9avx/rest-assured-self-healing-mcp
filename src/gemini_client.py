@@ -122,12 +122,15 @@ Return ONLY valid JSON (no markdown wrapping):
 - Use standard unified diff format
 - Include correct file paths (relative to repo root)
 - Ensure line numbers are accurate
+- IMPORTANT: When removing lines (-), COPY THE EXACT text from the provided code.
+- Do NOT remove arguments, comments, or whitespace in the '-' block.
+- Specific Note for Assertions: Always include the failure message argument if present in the original code.
 - Example:
 --- a/src/test/java/com/example/Test.java
 +++ b/src/test/java/com/example/Test.java
 @@ -48,1 +48,1 @@
--    Assert.assertEquals(response.getStatusCode(), 500);
-+    Assert.assertEquals(response.getStatusCode(), 200);
+-    Assert.assertEquals(response.getStatusCode(), 500, "Status should be 500");
++    Assert.assertEquals(response.getStatusCode(), 200, "Status should be 200");
 
 IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks.
 """

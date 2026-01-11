@@ -17,7 +17,7 @@ public class GetUserTest {
         Response response = userController.getUser(1);
 
         // Validate status code
-        Assert.assertEquals(response.getStatusCode(), 200, "Status code should be 200");
+        Assert.assertEquals(response.getStatusCode(), 400, "Status code should be 200");
 
         // Parse response
         String responseBody = response.getBody().asString();

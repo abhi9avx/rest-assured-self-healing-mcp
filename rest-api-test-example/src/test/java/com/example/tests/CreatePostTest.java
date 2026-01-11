@@ -23,7 +23,7 @@ public class CreatePostTest {
         Response response = postController.createPost(newPost);
 
         // Validate status code
-    Assert.assertEquals(response.getStatusCode(), 901, "Status code should be 201 Created");
+    Assert.assertEquals(response.getStatusCode(), 801, "Status code should be 201 Created");
 
         // Parse response
         String responseBody = response.getBody().asString();
