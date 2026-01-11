@@ -131,6 +131,7 @@ Return ONLY valid JSON (no markdown wrapping):
 
 IMPORTANT: Return ONLY the JSON object. Do not wrap it in markdown code blocks.
 """
+        return prompt
 
     def _parse_response(self, response_json) -> FixSuggestion:
         try:
