@@ -163,10 +163,15 @@ def main():
                 
                 # Commit the fix
                 commit_msg = f"🤖 Fix: {target_failure.test_name}\n\n{fix.explanation}"
+                
+                # Explicitly add all changes to staging
+                subprocess.run(["git", "add", "."], cwd=repo_path, check=True)
+                
                 subprocess.run(
-                    ["git", "commit", "-am", commit_msg],
+                    ["git", "commit", "-m", commit_msg],
                     cwd=repo_path,
-                    capture_output=True
+                    capture_output=True,
+                    check=True
                 )
                 
                 # Push to GitHub
